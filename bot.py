@@ -31,13 +31,15 @@ def save_progress(data):
 
 async def send_mcq_answer(topic):
     await asyncio.sleep(120)
-    answer_text = f"""✅ Answer:
+    await bot.send_message(
+        chat_id=CHANNEL_ID,
+        text=f"""✅ Answer:
 {topic['mcq']['answer']}
 
 📖 Explanation:
 {topic['mcq']['explanation']}
 """
-    await bot.send_message(chat_id=CHANNEL_ID, text=answer_text)
+    )
 
 
 async def send_content():
@@ -66,14 +68,18 @@ async def send_content():
 
     if mode == 0:
         message = f"📚 Topic:\n{topic['topic']}"
+
     elif mode == 1:
         message = f"📝 Short Note:\n{topic['short_note']}"
+
     elif mode == 2:
         message = f"🧠 Viva:\n{topic['viva']}"
+
     elif mode == 3:
         options = "\n".join(topic["mcq"]["options"])
         message = f"❓ MCQ:\n{topic['mcq']['question']}\n\n{options}"
         asyncio.create_task(send_mcq_answer(topic))
+
     else:
         message = f"🎯 10M Question:\n{topic['long_question']}"
         progress["sent"].append(topic["topic"])
@@ -85,24 +91,20 @@ async def send_content():
     await bot.send_message(chat_id=CHANNEL_ID, text=message)
 
 
-async def scheduler(app):
+async def scheduler():
     while True:
         await send_content()
-        await asyncio.sleep(1800)
+        await asyncio.sleep(1800)  # 30 minutes
 
 
 async def main():
-    app = ApplicationBuilder().token(TOKEN).build()
+    application = ApplicationBuilder().token(TOKEN).build()
 
-    # Start scheduler after bot starts
-    async def post_init(application):
-        asyncio.create_task(scheduler(application))
+    # Start scheduler in background
+    asyncio.create_task(scheduler())
 
-    app.post_init = post_init
-
-    await app.run_polling()
+    await application.run_polling()
 
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.get_event_loop().run_until_complete(main())
+    asyncio.run(main())
