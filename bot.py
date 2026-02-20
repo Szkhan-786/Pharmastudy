@@ -1,14 +1,17 @@
 import json
 import random
 import os
-from telegram import Update
-from telegram.ext import (
-    ApplicationBuilder,
-    ContextTypes,
-)
+from flask import Flask, request
+from telegram import Update, Bot
+from telegram.ext import ApplicationBuilder, ContextTypes
 
 TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_ID = "@Pharmastudy_in"  # Replace this
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # Railway will provide this
+
+app_flask = Flask(__name__)
+bot = Bot(token=TOKEN)
+application = ApplicationBuilder().token(TOKEN).build()
 
 
 def load_topics():
@@ -68,24 +71,14 @@ async def send_content(context: ContextTypes.DEFAULT_TYPE):
 
     if mode == 0:
         message = f"📚 Topic:\n{topic['topic']}"
-
     elif mode == 1:
         message = f"📝 Short Note:\n{topic['short_note']}"
-
     elif mode == 2:
         message = f"🧠 Viva:\n{topic['viva']}"
-
     elif mode == 3:
         options = "\n".join(topic["mcq"]["options"])
         message = f"❓ MCQ:\n{topic['mcq']['question']}\n\n{options}"
-
-        # Schedule MCQ answer after 2 minutes
-        context.job_queue.run_once(
-            send_mcq_answer,
-            when=120,
-            data=topic,
-        )
-
+        context.job_queue.run_once(send_mcq_answer, 120, data=topic)
     else:
         message = f"🎯 10M Question:\n{topic['long_question']}"
         progress["sent"].append(topic["topic"])
@@ -97,15 +90,24 @@ async def send_content(context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=CHANNEL_ID, text=message)
 
 
-async def main():
-    app = ApplicationBuilder().token(TOKEN).build()
+@app_flask.route("/", methods=["POST"])
+async def webhook():
+    update = Update.de_json(request.get_json(force=True), bot)
+    await application.process_update(update)
+    return "ok"
 
-    # Every 30 minutes
-    app.job_queue.run_repeating(send_content, interval=1800, first=5)
 
-    await app.run_polling()
+@app_flask.route("/")
+def home():
+    return "Bot Running"
+
+
+async def setup():
+    await application.initialize()
+    await bot.set_webhook(f"{WEBHOOK_URL}/")
 
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(main())
+    asyncio.run(setup())
+    app_flask.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
