@@ -2,20 +2,40 @@
   "Pathophysiology": [
     {
       "topic": "Cell Injury – Reversible vs Irreversible",
-      "marks": "7M",
-      "viva": "What is hydropic degeneration?"
-    },
-    {
-      "topic": "Mechanism of Cell Injury",
-      "marks": "10M",
-      "viva": "Define apoptosis."
+      "short_note": "Reversible injury shows cell swelling and fatty change. Irreversible injury leads to necrosis due to mitochondrial damage and membrane rupture.",
+      "viva": "What is hydropic degeneration?",
+      "mcq": {
+        "question": "Most common cause of cell injury is:",
+        "options": [
+          "A) Infection",
+          "B) Hypoxia",
+          "C) Trauma",
+          "D) Radiation"
+        ],
+        "answer": "B) Hypoxia",
+        "explanation": "Hypoxia reduces ATP production leading to failure of ion pumps and cellular swelling."
+      },
+      "long_question": "Explain mechanisms of cell injury in detail with diagram."
     }
   ],
+
   "Pharmaceutical Analysis": [
     {
-      "topic": "Errors in Analysis",
-      "marks": "10M",
-      "viva": "What is systematic error?"
+      "topic": "Errors in Pharmaceutical Analysis",
+      "short_note": "Errors are classified into systematic, random and gross errors. Systematic errors affect accuracy while random errors affect precision.",
+      "viva": "What is systematic error?",
+      "mcq": {
+        "question": "Random errors mainly affect:",
+        "options": [
+          "A) Accuracy",
+          "B) Precision",
+          "C) Both",
+          "D) None"
+        ],
+        "answer": "B) Precision",
+        "explanation": "Random errors cause variation between repeated measurements, affecting precision."
+      },
+      "long_question": "Discuss types of errors and methods of minimizing them."
     }
   ]
 }
