@@ -1,35 +1,107 @@
 import json
 import random
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+import asyncio
 import os
+from telegram import Bot
+from telegram.ext import ApplicationBuilder
 
 TOKEN = os.getenv("BOT_TOKEN")
+CHANNEL_ID = "@Pharmastudy_in"  # Replace with your channel username
+
+bot = Bot(token=TOKEN)
+
 
 def load_topics():
     with open("topics.json", "r") as f:
         return json.load(f)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📘 Welcome to B.Pharm Mentor Bot")
 
-async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    topics = load_topics()
-    unit = random.choice(list(topics.keys()))
-    topic = random.choice(topics[unit])
+def load_progress():
+    try:
+        with open("progress.json", "r") as f:
+            return json.load(f)
+    except:
+        return {"sent": [], "mode": 0, "current_topic": None}
 
-    message = f"""
-📚 Unit: {unit}
 
-🎯 Topic: {topic['topic']} ({topic['marks']})
+def save_progress(data):
+    with open("progress.json", "w") as f:
+        json.dump(data, f)
 
-🧠 Viva:
-{topic['viva']}
+
+async def send_mcq_answer(topic):
+    await asyncio.sleep(120)  # 2 minutes
+    answer_text = f"""✅ Answer:
+{topic['mcq']['answer']}
+
+📖 Explanation:
+{topic['mcq']['explanation']}
 """
-    await update.message.reply_text(message)
+    await bot.send_message(chat_id=CHANNEL_ID, text=answer_text)
 
-app = ApplicationBuilder().token(TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("daily", daily))
 
-app.run_polling()
+async def send_content():
+    topics = load_topics()
+    progress = load_progress()
+    sent = progress["sent"]
+    mode = progress["mode"]
+    current_topic = progress["current_topic"]
+
+    # Flatten topics
+    all_topics = []
+    for unit in topics.values():
+        for t in unit:
+            if t["topic"] not in sent:
+                all_topics.append(t)
+
+    if not all_topics:
+        progress["sent"] = []
+        save_progress(progress)
+        return
+
+    # Pick new topic only when starting fresh cycle
+    if mode == 0 or not current_topic:
+        topic = random.choice(all_topics)
+        progress["current_topic"] = topic
+    else:
+        topic = current_topic
+
+    if mode == 0:
+        message = f"📚 Topic:\n{topic['topic']}"
+
+    elif mode == 1:
+        message = f"📝 Short Note:\n{topic['short_note']}"
+
+    elif mode == 2:
+        message = f"🧠 Viva:\n{topic['viva']}"
+
+    elif mode == 3:
+        options = "\n".join(topic["mcq"]["options"])
+        message = f"❓ MCQ:\n{topic['mcq']['question']}\n\n{options}"
+        asyncio.create_task(send_mcq_answer(topic))
+
+    else:
+        message = f"🎯 10M Question:\n{topic['long_question']}"
+        progress["sent"].append(topic["topic"])
+        progress["current_topic"] = None
+
+    progress["mode"] = (mode + 1) % 5
+    save_progress(progress)
+
+    await bot.send_message(chat_id=CHANNEL_ID, text=message)
+
+
+async def scheduler():
+    while True:
+        await send_content()
+        await asyncio.sleep(1800)  # 30 minutes
+
+
+async def main():
+    app = ApplicationBuilder().token(TOKEN).build()
+    asyncio.create_task(scheduler())
+    await app.run_polling()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
