@@ -6,7 +6,7 @@ from telegram import Bot
 from telegram.ext import ApplicationBuilder
 
 TOKEN = os.getenv("BOT_TOKEN")
-CHANNEL_ID = "@Pharmastudy_in"  # Replace with your channel username
+CHANNEL_ID = "@Pharmastudy_in"  # Replace this
 
 bot = Bot(token=TOKEN)
 
@@ -30,7 +30,7 @@ def save_progress(data):
 
 
 async def send_mcq_answer(topic):
-    await asyncio.sleep(120)  # 2 minutes
+    await asyncio.sleep(120)
     answer_text = f"""✅ Answer:
 {topic['mcq']['answer']}
 
@@ -47,7 +47,6 @@ async def send_content():
     mode = progress["mode"]
     current_topic = progress["current_topic"]
 
-    # Flatten topics
     all_topics = []
     for unit in topics.values():
         for t in unit:
@@ -59,7 +58,6 @@ async def send_content():
         save_progress(progress)
         return
 
-    # Pick new topic only when starting fresh cycle
     if mode == 0 or not current_topic:
         topic = random.choice(all_topics)
         progress["current_topic"] = topic
@@ -68,18 +66,14 @@ async def send_content():
 
     if mode == 0:
         message = f"📚 Topic:\n{topic['topic']}"
-
     elif mode == 1:
         message = f"📝 Short Note:\n{topic['short_note']}"
-
     elif mode == 2:
         message = f"🧠 Viva:\n{topic['viva']}"
-
     elif mode == 3:
         options = "\n".join(topic["mcq"]["options"])
         message = f"❓ MCQ:\n{topic['mcq']['question']}\n\n{options}"
         asyncio.create_task(send_mcq_answer(topic))
-
     else:
         message = f"🎯 10M Question:\n{topic['long_question']}"
         progress["sent"].append(topic["topic"])
@@ -91,17 +85,24 @@ async def send_content():
     await bot.send_message(chat_id=CHANNEL_ID, text=message)
 
 
-async def scheduler():
+async def scheduler(app):
     while True:
         await send_content()
-        await asyncio.sleep(1800)  # 30 minutes
+        await asyncio.sleep(1800)
 
 
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
-    asyncio.create_task(scheduler())
+
+    # Start scheduler after bot starts
+    async def post_init(application):
+        asyncio.create_task(scheduler(application))
+
+    app.post_init = post_init
+
     await app.run_polling()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import asyncio
+    asyncio.get_event_loop().run_until_complete(main())
