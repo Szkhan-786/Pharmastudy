@@ -1,14 +1,14 @@
 import json
 import random
-import asyncio
 import os
-from telegram import Bot
-from telegram.ext import ApplicationBuilder
+from telegram import Update
+from telegram.ext import (
+    ApplicationBuilder,
+    ContextTypes,
+)
 
 TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_ID = "@Pharmastudy_in"  # Replace this
-
-bot = Bot(token=TOKEN)
 
 
 def load_topics():
@@ -29,9 +29,9 @@ def save_progress(data):
         json.dump(data, f)
 
 
-async def send_mcq_answer(topic):
-    await asyncio.sleep(120)
-    await bot.send_message(
+async def send_mcq_answer(context: ContextTypes.DEFAULT_TYPE):
+    topic = context.job.data
+    await context.bot.send_message(
         chat_id=CHANNEL_ID,
         text=f"""✅ Answer:
 {topic['mcq']['answer']}
@@ -42,7 +42,7 @@ async def send_mcq_answer(topic):
     )
 
 
-async def send_content():
+async def send_content(context: ContextTypes.DEFAULT_TYPE):
     topics = load_topics()
     progress = load_progress()
     sent = progress["sent"]
@@ -78,7 +78,13 @@ async def send_content():
     elif mode == 3:
         options = "\n".join(topic["mcq"]["options"])
         message = f"❓ MCQ:\n{topic['mcq']['question']}\n\n{options}"
-        asyncio.create_task(send_mcq_answer(topic))
+
+        # Schedule MCQ answer after 2 minutes
+        context.job_queue.run_once(
+            send_mcq_answer,
+            when=120,
+            data=topic,
+        )
 
     else:
         message = f"🎯 10M Question:\n{topic['long_question']}"
@@ -88,23 +94,18 @@ async def send_content():
     progress["mode"] = (mode + 1) % 5
     save_progress(progress)
 
-    await bot.send_message(chat_id=CHANNEL_ID, text=message)
-
-
-async def scheduler():
-    while True:
-        await send_content()
-        await asyncio.sleep(1800)  # 30 minutes
+    await context.bot.send_message(chat_id=CHANNEL_ID, text=message)
 
 
 async def main():
-    application = ApplicationBuilder().token(TOKEN).build()
+    app = ApplicationBuilder().token(TOKEN).build()
 
-    # Start scheduler in background
-    asyncio.create_task(scheduler())
+    # Every 30 minutes
+    app.job_queue.run_repeating(send_content, interval=1800, first=5)
 
-    await application.run_polling()
+    await app.run_polling()
 
 
 if __name__ == "__main__":
+    import asyncio
     asyncio.run(main())
